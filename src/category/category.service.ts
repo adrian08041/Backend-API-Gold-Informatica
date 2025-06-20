@@ -1,0 +1,127 @@
+import { Injectable } from '@nestjs/common';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { v4 as uuidv4 } from 'uuid';
+import { Prisma } from 'generated/prisma';
+
+@Injectable()
+export class CategoryService {
+  constructor(private readonly prisma: PrismaService) {}
+  async create(createCategoryDto: CreateCategoryDto) {
+    const id = uuidv4();
+
+    const categoryCreated = await this.prisma.client.category.create({
+      data: {
+        id,
+        name: createCategoryDto.name,
+        slug: createCategoryDto.slug,
+        imageUrl: createCategoryDto.imageUrl,
+      },
+    });
+
+    return {
+      statusCode: 201,
+      message: 'Category created successfully',
+      data: categoryCreated,
+    };
+  }
+
+  async findAll(page?: number, perPage?: number, name?: string) {
+    const where: Prisma.CategoryWhereInput = {
+      name: name ? { contains: name, mode: 'insensitive' } : undefined,
+      enabled: true,
+    };
+
+    const args: Prisma.CategoryFindManyArgs = {
+      where,
+      orderBy: { name: 'asc' },
+    };
+
+    if (page !== undefined && perPage !== undefined) {
+      const skip = (page - 1) * perPage;
+      const take = perPage;
+      args.skip = skip;
+      args.take = take;
+    }
+
+    const categories = await this.prisma.client.category.findMany({
+      ...args,
+    });
+
+    const totalCategories = await this.prisma.client.category.count({
+      where: {
+        name: name ? { contains: name, mode: 'insensitive' } : undefined,
+        enabled: true, // Apenas produtos habilitados
+      },
+    });
+    return {
+      statusCode: 200,
+      message: 'Categories retrieved successfully',
+      data: categories,
+      pagination: {
+        page,
+        perPage,
+        totalRecords: totalCategories,
+        totalPages: perPage ? Math.ceil(totalCategories / perPage) : 1, // Calcula o total de páginas
+      },
+    };
+  }
+
+  async findOne(id: string) {
+    const category = await this.prisma.client.category.findUnique({
+      where: { id },
+    });
+
+    if (!category) {
+      return {
+        statusCode: 404,
+        message: 'Category not found',
+      };
+    }
+
+    // Retorna a resposta com o produto encontrado
+    return {
+      statusCode: 200,
+      message: 'Category retrieved successfully',
+      data: category,
+    };
+  }
+
+  async update(id: string, updateCategoryDto: UpdateCategoryDto) {
+    const categoryUpdated = await this.prisma.client.category.update({
+      data: {
+        name: updateCategoryDto.name,
+        slug: updateCategoryDto.slug,
+        imageUrl: updateCategoryDto.imageUrl,
+      },
+      where: { id },
+    });
+
+    return {
+      statusCode: 200,
+      message: 'Category updated successfully',
+      data: categoryUpdated,
+    };
+  }
+
+  remove(id: string) {
+    return this.prisma.client.category
+      .update({
+        where: { id: id },
+        data: { enabled: false },
+      })
+      .then(() => {
+        return {
+          statusCode: 200,
+          message: 'Category removed successfully',
+        };
+      })
+      .catch(() => {
+        return {
+          statusCode: 404,
+          message: 'Category not found',
+        };
+      });
+  }
+}
