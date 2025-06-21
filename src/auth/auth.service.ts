@@ -1,13 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { AuthDto } from './dto/auth.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException, HttpStatus } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { CreateUserDto } from 'src/user/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -47,6 +44,40 @@ export class AuthService {
       accessToken: token,
       statusCode: HttpStatus.OK,
       message: 'Login successful',
+    };
+  }
+
+  //  Registro
+  async register(dto: CreateUserDto) {
+    const userExists = await this.prisma.client.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (userExists) {
+      throw new BadRequestException('Email already registered');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.client.user.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        password: hashedPassword,
+        role: 'USER', // padrão
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      user,
+      statusCode: HttpStatus.CREATED,
+      message: 'User registered successfully',
     };
   }
 }
