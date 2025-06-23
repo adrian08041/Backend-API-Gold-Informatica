@@ -105,23 +105,18 @@ export class CategoryService {
     };
   }
 
-  remove(id: string) {
-    return this.prisma.client.category
-      .update({
-        where: { id: id },
-        data: { enabled: false },
-      })
-      .then(() => {
-        return {
-          statusCode: 200,
-          message: 'Category removed successfully',
-        };
-      })
-      .catch(() => {
-        return {
-          statusCode: 404,
-          message: 'Category not found',
-        };
-      });
+  async remove(id: string) {
+    await this.prisma.client.product.deleteMany({
+      where: { categoryId: id },
+    });
+
+    await this.prisma.client.category.delete({
+      where: { id },
+    });
+
+    return {
+      statusCode: 200,
+      message: 'Category deleted successfully',
+    };
   }
 }
