@@ -229,4 +229,16 @@ export class ProductService {
         throw new NotFoundException('Product not found');
       });
   }
+  async findDiscountedProducts() {
+    return this.prisma.client.product.findMany({
+      where: {
+        discountPercentage: {
+          gt: 0,
+        },
+      },
+      include: {
+        category: true,
+      },
+    });
+  }
 }

@@ -36,6 +36,11 @@ export class ProductController {
     return this.productService.findAll(+page, +perPage, name);
   }
 
+  @Get('deals')
+  async getDiscountedProducts() {
+    return this.productService.findDiscountedProducts();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productService.findOne(id);

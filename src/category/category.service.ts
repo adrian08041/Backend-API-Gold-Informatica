@@ -106,10 +106,32 @@ export class CategoryService {
   }
 
   async remove(id: string) {
-    await this.prisma.client.product.deleteMany({
+    // Busca todos os produtos vinculados à categoria
+    const products = await this.prisma.client.product.findMany({
       where: { categoryId: id },
+      select: { id: true },
     });
 
+    const productIds = products.map((p) => p.id);
+
+    // Se existirem produtos vinculados
+    if (productIds.length > 0) {
+      // Remove OrderProduct relacionados a esses produtos
+      await this.prisma.client.orderProduct.deleteMany({
+        where: {
+          productId: { in: productIds },
+        },
+      });
+
+      // Remove os próprios produtos
+      await this.prisma.client.product.deleteMany({
+        where: {
+          id: { in: productIds },
+        },
+      });
+    }
+
+    // Remove a categoria
     await this.prisma.client.category.delete({
       where: { id },
     });
@@ -117,6 +139,32 @@ export class CategoryService {
     return {
       statusCode: 200,
       message: 'Category deleted successfully',
+    };
+  }
+
+  async findBySlug(slug: string) {
+    const category = await this.prisma.client.category.findFirst({
+      where: { slug, enabled: true },
+      include: {
+        products: {
+          include: {
+            category: true,
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      return {
+        statusCode: 404,
+        message: 'Category not found',
+      };
+    }
+
+    return {
+      statusCode: 200,
+      message: 'Category retrieved successfully',
+      data: category,
     };
   }
 }
